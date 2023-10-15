@@ -1,0 +1,18 @@
+{
+	"appInfo": {
+		"headers": {
+			"userid": "kafka",
+			"tenant": "SBM"
+		},
+		"messageBody": {
+			"body": {
+				"mpkey": "202117090019_1",
+				"processId": "202117090019",
+				"endpointurl": "http://localhost:8081/recon/fileservice/process",
+				"httpmethod": "POST",
+				"apiType": "REST",
+
+			}
+		}
+	}
+}
