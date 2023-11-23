@@ -26,7 +26,7 @@ public interface Constants {
 	public static final String PENDING = "PENDING";
 	public static final String FAILURE = "ACK FAILURE";
 	public static final String SUCCESS = "SUCCESS";
-	public static final String INTIATED = "INTIATED";
+	public static final String INTIATED = "INITIATED";
 	
 	public static final String ERROR_CODE_99 = "99";
 	public static final String ERROR_MSG_99 = "Unable to process.";
