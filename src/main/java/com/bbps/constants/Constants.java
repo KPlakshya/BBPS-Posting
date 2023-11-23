@@ -24,7 +24,7 @@ public interface Constants {
 	public static final String CUSTOMER_REQ_ID = "customerReqId";
 	
 	public static final String PENDING = "PENDING";
-	public static final String FAILURE = "FAILURE";
+	public static final String FAILURE = "ACK FAILURE";
 	public static final String SUCCESS = "SUCCESS";
 	public static final String INTIATED = "INTIATED";
 	

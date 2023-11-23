@@ -8,11 +8,11 @@ import java.util.Map;
 @ToString
 public class Message {
 
-    private BbpsReqInfo bbpsReqInfo;
+    private BbpsReqinfo bbpsReqinfo;
 
     @Data
     @ToString
-    public static class BbpsReqInfo {
+    public static class BbpsReqinfo {
         private Map<String, Object> headers;
         private MessageBody messageBody;
     }

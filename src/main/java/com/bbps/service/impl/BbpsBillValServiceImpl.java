@@ -2,15 +2,15 @@ package com.bbps.service.impl;
 
 import org.bbps.schema.AgentType;
 import org.bbps.schema.BillDetailsType;
-import org.bbps.schema.BillValidationRequestType;
+import org.bbps.schema.BillValidationRequest;
 import org.bbps.schema.BillerType;
 import org.bbps.schema.CustomerParamsType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billvalidation.data.BillValidationRequest;
-import com.bbps.billvalidation.data.BillValidationResponse;
+import com.bbps.billvalidation.data.BillValidationRequestVO;
+import com.bbps.billvalidation.data.BillValidationResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.data.BbpsPostingResponse;
 import com.bbps.entity.service.CustomerRequestResponseService;
@@ -30,10 +30,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BbpsBillValServiceImpl implements BBPSService{
 	
-	@Value("$bbps.orgInst")
+	@Value("${bbps.orgInst}")
 	private String orgId;
 
-	@Value("$bbps.prefix")
+	@Value("${bbps.prefix}")
 	private String prefix;
 
 	@Autowired
@@ -47,10 +47,10 @@ public class BbpsBillValServiceImpl implements BBPSService{
 		log.info("inside BbpsBillValServiceImpl process [{}]", message.toString());
 		String billvalReqStr = null;
 		BbpsPostingResponse bbpspostingresp = null;
-		BillValidationRequestType billvalReq = null;
+		BillValidationRequest billvalReq = null;
 		try {
 
-			billvalReq = getBillValRequestXML(message.getBbpsReqInfo().getMessageBody().getBody());
+			billvalReq = getBillValRequestXML(message.getBbpsReqinfo().getMessageBody().getBody());
 			billvalReqStr = MarshUnMarshUtil.marshal(billvalReq).toString();
 			bbpspostingresp = bbpsRestConService.send(billvalReqStr, Constants.BILL_VALIDATION_REQUEST,
 					billvalReq.getHead().getRefId());
@@ -63,11 +63,11 @@ public class BbpsBillValServiceImpl implements BBPSService{
 			bbpspostingresp.setAck(Constants.ERROR_MSG_99);
 
 		} finally {
-			String id = message.getBbpsReqInfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
+			String id = message.getBbpsReqinfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
 			String refId = billvalReq != null ? billvalReq.getHead().getRefId() : null;
 			if (bbpspostingresp.getAckerror() != null) {
 
-				BillValidationResponse response = new BillValidationResponse();
+				BillValidationResponseVO response = new BillValidationResponseVO();
 				response.setResponseCode(bbpspostingresp.getErrorCode());
 				response.setResponseMessage(bbpspostingresp.getAckerror());
 				custReqRespService.fetchAndUpdateFailure(id, bbpspostingresp.getHttpcode(), refId, response);
@@ -80,9 +80,9 @@ public class BbpsBillValServiceImpl implements BBPSService{
 
 	}
 
-	private BillValidationRequestType getBillValRequestXML(String body) throws JsonMappingException, JsonProcessingException {
-		BillValidationRequest request = getRequest(body);
-		BillValidationRequestType xmlReq = new BillValidationRequestType();
+	private BillValidationRequest getBillValRequestXML(String body) throws JsonMappingException, JsonProcessingException {
+		BillValidationRequestVO request = getRequest(body);
+		BillValidationRequest xmlReq = new BillValidationRequest();
 		xmlReq.setHead(Utils.createHead(orgId, prefix));
 		AgentType agentType = new AgentType();
 		agentType.setId(request.getAgentId());
@@ -96,7 +96,7 @@ public class BbpsBillValServiceImpl implements BBPSService{
 			CustomerParamsType.Tag ct = new CustomerParamsType.Tag();
 			ct.setName(request.getInputParams().getInput().get(i).getParamName());
 			ct.setValue(request.getInputParams().getInput().get(i).getParamValue());
-			custparam.getTag().add(ct);
+			custparam.getTags().add(ct);
 		}
 		billDtl.setCustomerParams(custparam);
 		xmlReq.setBillDetails(billDtl);
@@ -107,9 +107,9 @@ public class BbpsBillValServiceImpl implements BBPSService{
 		
 	}
 	
-	public static BillValidationRequest getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
+	public static BillValidationRequestVO getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		BillValidationRequest reqJson = mapper.readValue(reqStr, BillValidationRequest.class);
+		BillValidationRequestVO reqJson = mapper.readValue(reqStr, BillValidationRequestVO.class);
 
 		return reqJson;
 	}

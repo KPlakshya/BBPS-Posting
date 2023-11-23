@@ -107,7 +107,8 @@ public class BbpsRestConnectionConfig {
 
 	@Bean("closeableHttpClient")
 	public CloseableHttpClient httpClient(
-			@Qualifier("bbpsPoolingHttpClientConnectionManager") PoolingHttpClientConnectionManager poolingConnectionManager) {
+//			@Qualifier("bbpsPoolingHttpClientConnectionManager") PoolingHttpClientConnectionManager poolingConnectionManager) {
+			@Qualifier("poolingHttpClientConnectionManager") PoolingHttpClientConnectionManager poolingConnectionManager) {
 		log.info("start building npciCloseableHttpClient");
 		RequestConfig requestConfig = requestConfig();
 		ConnectionKeepAliveStrategy connectionKeepAliveStrategy = connectionKeepAliveStrategy();
@@ -121,6 +122,7 @@ public class BbpsRestConnectionConfig {
 		return closeableHttpClient_;
 	}
 
+	@Bean
 	private static TrustManager[] get_trust_mgr() {
 		TrustManager[] certs = new TrustManager[] { new X509ExtendedTrustManager() {
 			@Override

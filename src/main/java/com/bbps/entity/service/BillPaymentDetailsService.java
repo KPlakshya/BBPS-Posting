@@ -5,21 +5,23 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billpayment.data.BillPaymentRequest;
+import com.bbps.billpayment.data.BillPaymentRequestVO;
 import com.bbps.constants.Constants;
 import com.bbps.entity.BillPaymentDetails;
 import com.bbps.entity.repo.BillPaymentDetailsRepo;
 
 @Service
+@Slf4j
 public class BillPaymentDetailsService {
 
 	@Autowired
 	private BillPaymentDetailsRepo repo;
 
-	public BillPaymentDetails saveBillDetailsPending(String refId, BillPaymentRequest jsonRequest) {
+	public BillPaymentDetails saveBillDetailsPending(String refId, BillPaymentRequestVO jsonRequest) {
 		BillPaymentDetails billdtl = new BillPaymentDetails();
 		billdtl.setRefId(refId);
 		billdtl.setTxnReferenceId(jsonRequest.getTxnReferenceId());
@@ -83,6 +85,7 @@ public class BillPaymentDetailsService {
 		billdtl.setRequestTimestamp(Timestamp.valueOf(LocalDateTime.now()));
 		billdtl.setStatus(Constants.PENDING);
 
+		log.info("Before Insert into billpaymnetbdetails [{}]",billdtl);
 		return repo.save(billdtl);
 
 	}

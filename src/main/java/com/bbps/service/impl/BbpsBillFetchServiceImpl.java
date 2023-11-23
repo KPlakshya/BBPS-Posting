@@ -5,7 +5,7 @@ import org.bbps.schema.AgentType;
 import org.bbps.schema.AnalyticsFetchTypeInstance;
 import org.bbps.schema.AnalyticsType;
 import org.bbps.schema.BillDetailsType;
-import org.bbps.schema.BillFetchRequestType;
+import org.bbps.schema.BillFetchRequest;
 import org.bbps.schema.BillerType;
 import org.bbps.schema.CustomerDtlsType;
 import org.bbps.schema.CustomerParamsType;
@@ -18,8 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billfetch.data.BillFetchRequest;
-import com.bbps.billfetch.data.BillFetchResponse;
+import com.bbps.billfetch.data.BillFetchRequestVO;
+import com.bbps.billfetch.data.BillFetchResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.data.BbpsPostingResponse;
 import com.bbps.entity.service.CustomerRequestResponseService;
@@ -38,10 +38,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service("BillFetchRequest")
 @Slf4j
 public class BbpsBillFetchServiceImpl implements BBPSService {
-	@Value("$bbps.orgInst")
+	@Value("${bbps.orgInst}")
 	private String orgId;
 
-	@Value("$bbps.prefix")
+	@Value("${bbps.prefix}")
 	private String prefix;
 
 	@Autowired
@@ -52,32 +52,29 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 
 	@Override
 	public void process(Message message) {
-		log.info("inside BbpsBillerFetchServiceImpl process [{}]", message.toString());
+		log.info("bbps-BillFetch Process Request [{}]", message.toString());
 		String billFetchStr = null;
 		BbpsPostingResponse bbpspostingresp = null;
-		BillFetchRequestType billFetch = null;
+		BillFetchRequest billFetch = null;
 
 		try {
-
-			billFetch = getBBPSXmlRequest(message.getBbpsReqInfo().getMessageBody().getBody());
+			billFetch = getBBPSXmlRequest(message.getBbpsReqinfo().getMessageBody().getBody());
 			billFetchStr = MarshUnMarshUtil.marshal(billFetch).toString();
 
 			bbpspostingresp = bbpsRestConService.send(billFetchStr, Constants.BILL_FETCH_REQUEST,
 					billFetch.getHead().getRefId());
-
+			log.info("bbpspostingresp String[{}]",bbpspostingresp);
 		} catch (Exception e) {
-
-			log.error("Unable to process bill fetch request [{}]", e.getMessage());
+			log.error("Unable to process Bill fetch request [{}]", e.getMessage());
 			bbpspostingresp = new BbpsPostingResponse();
 			bbpspostingresp.setErrorCode(Constants.ERROR_CODE_99);
 			bbpspostingresp.setAck(Constants.ERROR_MSG_99);
 
 		} finally {
-			String id = message.getBbpsReqInfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
+			String id = message.getBbpsReqinfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
 			String refId = billFetch != null ? billFetch.getHead().getRefId() : null;
 			if (bbpspostingresp.getAckerror() != null) {
-
-				BillFetchResponse response = new BillFetchResponse();
+				BillFetchResponseVO response = new BillFetchResponseVO();
 				response.setResponseCode(bbpspostingresp.getErrorCode());
 				response.setResponseMessage(bbpspostingresp.getAckerror());
 				custReqRespService.fetchAndUpdateFailure(id, bbpspostingresp.getHttpcode(), refId, response);
@@ -90,9 +87,9 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 
 	}
 
-	private BillFetchRequestType getBBPSXmlRequest(String body) throws JsonMappingException, JsonProcessingException {
-		BillFetchRequest request = getRequest(body);
-		BillFetchRequestType billFetchRequestType = new BillFetchRequestType();
+	private BillFetchRequest getBBPSXmlRequest(String body) throws JsonMappingException, JsonProcessingException {
+		BillFetchRequestVO request = getRequest(body);
+		BillFetchRequest billFetchRequestType = new BillFetchRequest();
 		billFetchRequestType.setHead(Utils.createHead(orgId, prefix));
 		AnalyticsType analyticsType = new AnalyticsType();
 		AnalyticsType.Tag t1 = new AnalyticsType.Tag();
@@ -101,21 +98,21 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 		AnalyticsType.Tag t2 = new AnalyticsType.Tag();
 		t2.setName(AnalyticsFetchTypeInstance.FETCHREQUESTEND.value());
 		t2.setValue(Utils.generateTs());
-		analyticsType.getTag().add(t1);
-		analyticsType.getTag().add(t2);
+		analyticsType.getTags().add(t1);
+		analyticsType.getTags().add(t2);
 		billFetchRequestType.setAnalytics(analyticsType);
 		TxnType txn = new TxnType();
 		txn.setTs(Utils.generateTs());
 		txn.setMsgId(Utils.generateUUID(prefix));
 		if (StringUtils.isNotBlank(request.getDirectBillChannel())) {
-			txn.setDirectBillChannel(DirectBillChannelType.valueOf(request.getDirectBillChannel()));
+			txn.setDirectBillChannel(DirectBillChannelType.fromValue(request.getDirectBillChannel()));
 		}
 		RiskScoresType riskScore = new RiskScoresType();
 		RiskScoresType.Score score = new RiskScoresType.Score();
 		score.setProvider(orgId);
 		score.setType("TXNRISK");
 		score.setValue("030");
-		riskScore.getScore().add(score);
+		riskScore.getScores().add(score);
 		txn.setRiskScores(riskScore);
 		billFetchRequestType.setTxn(txn);
 		CustomerDtlsType custDtls = new CustomerDtlsType();
@@ -124,19 +121,19 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("EMAIL");
 			c1.setValue(request.getCustomerInfo().getCustomerEmail());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		if (StringUtils.isNotBlank(request.getCustomerInfo().getCustomerAdhaar())) {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("AADHAAR");
 			c1.setValue(request.getCustomerInfo().getCustomerAdhaar());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		if (StringUtils.isNotBlank(request.getCustomerInfo().getCustomerPan())) {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("PAN");
 			c1.setValue(request.getCustomerInfo().getCustomerPan());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		billFetchRequestType.setCustomer(custDtls);
 		BillDetailsType billdetails = new BillDetailsType();
@@ -148,7 +145,7 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 			CustomerParamsType.Tag ct = new CustomerParamsType.Tag();
 			ct.setName(request.getInputParams().getInput().get(i).getParamName());
 			ct.setValue(request.getInputParams().getInput().get(i).getParamValue());
-			custparam.getTag().add(ct);
+			custparam.getTags().add(ct);
 		}
 		billdetails.setCustomerParams(custparam);
 		billFetchRequestType.setBillDetails(billdetails);
@@ -159,7 +156,7 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 			DeviceType.Tag tag = new DeviceType.Tag();
 			tag.setName(DeviceTagNameType.valueOf(request.getAgentDeviceInfo().getTag().get(i).getName()));
 			tag.setValue(request.getAgentDeviceInfo().getTag().get(i).getValue());
-			agentdevice.getTag().add(tag);
+			agentdevice.getTags().add(tag);
 		}
 		agentType.setDevice(agentdevice);
 		billFetchRequestType.setAgent(agentType);
@@ -167,9 +164,9 @@ public class BbpsBillFetchServiceImpl implements BBPSService {
 
 	}
 
-	public static BillFetchRequest getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
+	public static BillFetchRequestVO getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		BillFetchRequest reqJson = mapper.readValue(reqStr, BillFetchRequest.class);
+		BillFetchRequestVO reqJson = mapper.readValue(reqStr, BillFetchRequestVO.class);
 
 		return reqJson;
 	}

@@ -56,8 +56,10 @@ public class BbpsRestConServiceImpl implements BbpsRestConService {
 		long ts = 0;
 		try {
 			log.info(signedXml);
-			String npciUrl = baseUrl + apiName + Constants.CONST_FRD_SLASH + Constants.BBPS_V1
-					+ Constants.BBPS_URL_SUFFIX + refId;
+//			String npciUrl = baseUrl + apiName + Constants.CONST_FRD_SLASH + Constants.BBPS_V1
+//					+ Constants.BBPS_URL_SUFFIX + refId;
+			String npciUrl = baseUrl + apiName + Constants.CONST_FRD_SLASH + Constants.BBPS_V1;
+
 			log.info("NPCI URL [{}]", npciUrl);
 			HttpPost post = new HttpPost(npciUrl.trim());
 			post.setHeader("Content-Type", "application/xml");
@@ -68,6 +70,7 @@ public class BbpsRestConServiceImpl implements BbpsRestConService {
 			ts = System.currentTimeMillis();
 			try (CloseableHttpResponse response = closeableHttpClient.execute(post);) {
 				Integer responseCode = response.getStatusLine().getStatusCode();
+				log.info("Ack Response Code [{}]",responseCode);
 				bbpsResponse.setHttpcode(responseCode.toString());
 				log.info("BBPS Time {} ms with httpRespCode {} ", ts, responseCode);
 				try (BufferedReader rd = new BufferedReader(

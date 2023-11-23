@@ -11,7 +11,7 @@ import org.bbps.schema.AmtType;
 import org.bbps.schema.AnalyticsPaymentTypeInstance;
 import org.bbps.schema.AnalyticsType;
 import org.bbps.schema.BillDetailsType;
-import org.bbps.schema.BillPaymentRequestType;
+import org.bbps.schema.BillPaymentRequest;
 import org.bbps.schema.BillerResponseType;
 import org.bbps.schema.BillerType;
 import org.bbps.schema.CustomerDtlsType;
@@ -32,8 +32,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billpayment.data.BillPaymentRequest;
-import com.bbps.billpayment.data.BillPaymentResponse;
+import com.bbps.billpayment.data.BillPaymentRequestVO;
+import com.bbps.billpayment.data.BillPaymentResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.data.BbpsPostingResponse;
 import com.bbps.entity.BillPaymentDetails;
@@ -55,10 +55,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BbpsBillPaymentServiceImpl implements BBPSService {
 
-	@Value("$bbps.orgInst")
+	@Value("${bbps.orgInst}")
 	private String orgId;
 
-	@Value("$bbps.prefix")
+	@Value("${bbps.prefix}")
 	private String prefix;
 
 	@Autowired
@@ -75,42 +75,40 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		log.info("inside BbpsBillPaymentServiceImpl process [{}]", message.toString());
 		String billPaymentStr = null;
 		BbpsPostingResponse bbpspostingresp = null;
-		BillPaymentRequestType billpayment = null;
+		BillPaymentRequest billpayment = null;
 		BillPaymentDetails billPaymentDetails = null;
 
 		try {
-			BillPaymentRequest request = getRequest(message.getBbpsReqInfo().getMessageBody().getBody());
+			BillPaymentRequestVO request = getRequest(message.getBbpsReqinfo().getMessageBody().getBody());
 			billpayment = getBBPSXmlRequest(request);
 			billPaymentDetails = billpaymentservice.saveBillDetailsPending(billpayment.getHead().getRefId(), request);
+			log.info("Saved billPaymentDetails [{}]",billPaymentDetails.getId());
 			billPaymentStr = MarshUnMarshUtil.marshal(billpayment).toString();
 			bbpspostingresp = bbpsRestConService.send(billPaymentStr, Constants.BILL_PAYMENT_REQUEST,
 					billpayment.getHead().getRefId());
 
 		} catch (Exception e) {
-
+			e.printStackTrace();
 			log.error("Unable to process bill payment request [{}]", e.getMessage());
 			bbpspostingresp = new BbpsPostingResponse();
 			bbpspostingresp.setErrorCode(Constants.ERROR_CODE_99);
 			bbpspostingresp.setAck(Constants.ERROR_MSG_99);
 
 		} finally {
-			String id = message.getBbpsReqInfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
+			String id = message.getBbpsReqinfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
 			String refId = billpayment != null ? billpayment.getHead().getRefId() : null;
 			if (bbpspostingresp.getAckerror() != null) {
 
-				BillPaymentResponse response = new BillPaymentResponse();
+				BillPaymentResponseVO response = new BillPaymentResponseVO();
 				response.setResponseCode(bbpspostingresp.getErrorCode());
 				response.setResponseMessage(bbpspostingresp.getAckerror());
 				custReqRespService.fetchAndUpdateFailure(id, bbpspostingresp.getHttpcode(), refId, response);
 
-				billPaymentDetails.setResponseCode(bbpspostingresp.getErrorCode());
-				billPaymentDetails.setResponseMessage(bbpspostingresp.getAckerror());
-				billPaymentDetails.setStatus(Constants.FAILURE);
-				billPaymentDetails.setResponseTimestamp(Timestamp.valueOf(LocalDateTime.now()));
 			} else {
 				custReqRespService.fetchAndUpdateIntiated(id, bbpspostingresp.getHttpcode(), refId);
 				billPaymentDetails.setStatus(Constants.INTIATED);
 			}
+			log.info("Before Insert Bill Paymnet Details");
 			billpaymentservice.update(billPaymentDetails);
 
 			// save in audit table
@@ -118,13 +116,13 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 
 	}
 
-	private BillPaymentRequestType getBBPSXmlRequest(BillPaymentRequest request)
+	private BillPaymentRequest getBBPSXmlRequest(BillPaymentRequestVO request)
 			throws JsonMappingException, JsonProcessingException {
 
-		BillPaymentRequestType xmlReq = new BillPaymentRequestType();
+		BillPaymentRequest xmlReq = new BillPaymentRequest();
 		xmlReq.setHead(Utils.createHead(orgId, prefix));
 		xmlReq.getHead().setOrigRefId(request.getOrigRefId());
-		xmlReq.getHead().setSiTxn(SiTxnType.valueOf(request.getSiTxn()));
+		xmlReq.getHead().setSiTxn(SiTxnType.fromValue(request.getSiTxn()));
 		AnalyticsType analyticsType = new AnalyticsType();
 		AnalyticsType.Tag t1 = new AnalyticsType.Tag();
 		t1.setName(AnalyticsPaymentTypeInstance.PAYREQUESTSTART.value());
@@ -132,8 +130,8 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		AnalyticsType.Tag t2 = new AnalyticsType.Tag();
 		t2.setName(AnalyticsPaymentTypeInstance.PAYREQUESTEND.value());
 		t2.setValue(Utils.generateTs());
-		analyticsType.getTag().add(t1);
-		analyticsType.getTag().add(t2);
+		analyticsType.getTags().add(t1);
+		analyticsType.getTags().add(t2);
 		xmlReq.setAnalytics(analyticsType);
 
 		TxnType txn = new TxnType();
@@ -142,7 +140,7 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		txn.setTs(Utils.generateTs());
 		txn.setMsgId(Utils.generateUUID(prefix));
 		if (StringUtils.isNotBlank(request.getDirectBillChannel())) {
-			txn.setDirectBillChannel(DirectBillChannelType.valueOf(request.getDirectBillChannel()));
+			txn.setDirectBillChannel(DirectBillChannelType.fromValue(request.getDirectBillChannel()));
 		}
 		if (StringUtils.isNotBlank(request.getDirectBillContentId())) {
 			txn.setDirectBillContentId(request.getDirectBillContentId());
@@ -152,7 +150,7 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		score.setProvider(orgId);
 		score.setType("TXNRISK");
 		score.setValue("030");
-		riskScore.getScore().add(score);
+		riskScore.getScores().add(score);
 		txn.setRiskScores(riskScore);
 		xmlReq.setTxn(txn);
 		CustomerDtlsType custDtls = new CustomerDtlsType();
@@ -161,19 +159,19 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("EMAIL");
 			c1.setValue(request.getCustomerInfo().getCustomerEmail());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		if (StringUtils.isNotBlank(request.getCustomerInfo().getCustomerAdhaar())) {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("AADHAAR");
 			c1.setValue(request.getCustomerInfo().getCustomerAdhaar());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		if (StringUtils.isNotBlank(request.getCustomerInfo().getCustomerPan())) {
 			CustomerDtlsType.Tag c1 = new CustomerDtlsType.Tag();
 			c1.setName("PAN");
 			c1.setValue(request.getCustomerInfo().getCustomerPan());
-			custDtls.getTag().add(c1);
+			custDtls.getTags().add(c1);
 		}
 		xmlReq.setCustomer(custDtls);
 		AgentType agentType = new AgentType();
@@ -181,9 +179,9 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		DeviceType agentdevice = new DeviceType();
 		for (int i = 0; i < request.getAgentDeviceInfo().getTag().size(); i++) {
 			DeviceType.Tag tag = new DeviceType.Tag();
-			tag.setName(DeviceTagNameType.valueOf(request.getAgentDeviceInfo().getTag().get(i).getName()));
+			tag.setName(DeviceTagNameType.fromValue(request.getAgentDeviceInfo().getTag().get(i).getName()));
 			tag.setValue(request.getAgentDeviceInfo().getTag().get(i).getName());
-			agentdevice.getTag().add(tag);
+			agentdevice.getTags().add(tag);
 		}
 		agentType.setDevice(agentdevice);
 		xmlReq.setAgent(agentType);
@@ -196,7 +194,7 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 			CustomerParamsType.Tag ct = new CustomerParamsType.Tag();
 			ct.setName(request.getInputParams().getInput().get(i).getParamName());
 			ct.setValue(request.getInputParams().getInput().get(i).getParamValue());
-			custparam.getTag().add(ct);
+			custparam.getTags().add(ct);
 		}
 		billdetails.setCustomerParams(custparam);
 		xmlReq.setBillDetails(billdetails);
@@ -213,7 +211,7 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 			BillerResponseType.Tag tag = new BillerResponseType.Tag();
 			tag.setName(request.getBillerResponse().getTags().get(i).getName());
 			tag.setValue(request.getBillerResponse().getTags().get(i).getValue());
-			billerResp.getTag().add(tag);
+			billerResp.getTags().add(tag);
 
 		}
 		xmlReq.setBillerResponse(billerResp);
@@ -222,15 +220,15 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 			AdditionalInfoType.Tag tag = new AdditionalInfoType.Tag();
 			tag.setName(request.getAdditionaInfo().get(i).getName());
 			tag.setValue(request.getAdditionaInfo().get(i).getValue());
-			addinfo.getTag().add(tag);
+			addinfo.getTags().add(tag);
 
 		}
 		xmlReq.setAdditionalInfo(addinfo);
 
 		PmtMtdType pmtMtdType = new PmtMtdType();
-		pmtMtdType.setQuickPay(QckPayType.valueOf(request.getPaymentMethod().getQuickPay()));
-		pmtMtdType.setSplitPay(SpltPayType.valueOf(request.getPaymentMethod().getSplitPay()));
-		pmtMtdType.setOFFUSPay(OffUsPayType.valueOf(request.getPaymentMethod().getOffusPay()));
+		pmtMtdType.setQuickPay(QckPayType.fromValue(request.getPaymentMethod().getQuickPay()));
+		pmtMtdType.setSplitPay(SpltPayType.fromValue(request.getPaymentMethod().getSplitPay()));
+		pmtMtdType.setOFFUSPay(OffUsPayType.fromValue(request.getPaymentMethod().getOffusPay()));
 		pmtMtdType.setPaymentMode(request.getPaymentMethod().getPaymentMode());
 		xmlReq.setPaymentMethod(pmtMtdType);
 
@@ -242,30 +240,30 @@ public class BbpsBillPaymentServiceImpl implements BBPSService {
 		amtType.setCurrency(request.getAmount().getCurrency());
 		amounttype.setAmt(amtType);
 		amounttype.setSplitPayAmount(request.getAmount().getSplitPayAmount());
-		for (int i = 0; i < request.getAmount().getAmountTags().size(); i++) {
-			AmountType.Tag tag = new AmountType.Tag();
-			tag.setName(request.getAdditionaInfo().get(i).getName());
-			tag.setValue(request.getAdditionaInfo().get(i).getValue());
-			amounttype.getTag().add(tag);
-
-		}
+//		for (int i = 0; i < request.getAmount().getAmountTags().size(); i++) {
+//			AmountType.Tag tag = new AmountType.Tag();
+//			tag.setName(request.getAdditionaInfo().get(i).getName());
+//			tag.setValue(request.getAdditionaInfo().get(i).getValue());
+//			amounttype.getTags().add(tag);
+//
+//		}
 		xmlReq.setAmount(amounttype);
 		PymntInfType pymntInfType = new PymntInfType();
-		for (int i = 0; i < request.getPaymentInformationTags().size(); i++) {
-			PymntInfType.Tag tag = new PymntInfType.Tag();
-			tag.setName(request.getAdditionaInfo().get(i).getName());
-			tag.setValue(request.getAdditionaInfo().get(i).getValue());
-			pymntInfType.getTag().add(tag);
-
-		}
+//		for (int i = 0; i < request.getPaymentInformationTags().size(); i++) {
+//			PymntInfType.Tag tag = new PymntInfType.Tag();
+//			tag.setName(request.getAdditionaInfo().get(i).getName());
+//			tag.setValue(request.getAdditionaInfo().get(i).getValue());
+//			pymntInfType.getTags().add(tag);
+//
+//		}
 		xmlReq.setPaymentInformation(pymntInfType);
 		return xmlReq;
 
 	}
 
-	public static BillPaymentRequest getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
+	public static BillPaymentRequestVO getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		BillPaymentRequest reqJson = mapper.readValue(reqStr, BillPaymentRequest.class);
+		BillPaymentRequestVO reqJson = mapper.readValue(reqStr, BillPaymentRequestVO.class);
 
 		return reqJson;
 	}

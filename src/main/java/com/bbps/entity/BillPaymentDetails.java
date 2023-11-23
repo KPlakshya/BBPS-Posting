@@ -1,20 +1,16 @@
 package com.bbps.entity;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 import lombok.Data;
 
 @Entity
-@Table(name = "Bill_Payement_Details")
+@Table(name = "bill_payment_details",schema="bbps")
 @Data
-public class BillPaymentDetails {
+public class BillPaymentDetails implements Serializable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
