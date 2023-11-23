@@ -13,7 +13,7 @@ import javax.persistence.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "Customer_Request_Response")
+@Table(name = "Customer_Request_Response",schema="bbps")
 @Data
 public class CustomerRequestResponse implements Serializable{
 	

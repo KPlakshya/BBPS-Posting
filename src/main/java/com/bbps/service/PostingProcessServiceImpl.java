@@ -13,10 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 public class PostingProcessServiceImpl {
 
     public void process(Message message){
-        log.info("Requets Message [{}]",message);
-        
         try {
-			GetProcess.getServiceImpl((String)message.getBbpsReqInfo().getHeaders().get(Constants.ReqType)).process(message);
+			GetProcess.getServiceImpl((String)message.getBbpsReqinfo().getHeaders().get(Constants.ReqType)).process(message);
 		} catch (Exception e) {
 			log.error("unable to proceed with the bbps request {}", e.getMessage());
 		}

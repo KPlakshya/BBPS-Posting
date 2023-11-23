@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.bbps.schema.ReqDiagnosticType;
+import org.bbps.schema.ReqDiagnostic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +43,7 @@ public class CommonScheduler {
 	public void reqdiagAliveScheduler() {
 		log.info("Start REQ_DIAGNOSTIC Scheduler [{}]", LocalDateTime.now());
 		
-			ReqDiagnosticType req = createReqDiagnostic();
+			ReqDiagnostic req = createReqDiagnostic();
 			String reqhbtStr = MarshUnMarshUtil.marshal(req).toString();
 			restService.send(reqhbtStr, Constants.REQ_DIAGNOSTIC, req.getHead().getRefId());
 
@@ -51,8 +51,8 @@ public class CommonScheduler {
 
 	}
 	
-	private ReqDiagnosticType createReqDiagnostic() {
-		ReqDiagnosticType  reqHbt = new ReqDiagnosticType();
+	private ReqDiagnostic createReqDiagnostic() {
+		ReqDiagnostic  reqHbt = new ReqDiagnostic();
 		reqHbt.setHead(Utils.createHead(orgId, prefix));
 		return reqHbt;
 	}

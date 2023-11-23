@@ -51,7 +51,7 @@ public class GetProcess {
 	}
 
 	public static BBPSService getServiceImpl(String requestType) throws Exception {
-		log.info("fetching service class for request type {}", requestType);
+		log.info("Fetching service class for request type [{}]", requestType);
 		return Optional.ofNullable(svsImpl.get(requestType))
 				.orElseThrow(() -> new IllegalArgumentException("bbps request type is incorrect"));
 

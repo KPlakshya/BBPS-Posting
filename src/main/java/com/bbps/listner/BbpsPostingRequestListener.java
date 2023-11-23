@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -23,18 +24,19 @@ public class BbpsPostingRequestListener {
     @Autowired
     PostingProcessServiceImpl postingProcessService;
 
+
     @KafkaListener(topics =BBPS_POSTING_REQUEST,groupId = BBPS_POSTING_REQUEST_GROUP)
-    public void getPostingRequest(String kafkaReqData, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic){
+    public void getPostingRequest(@Payload String kafkaReqData, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic){
         try {
-            log.info("Tenant [{}] ,message received to process posting reports Queue [{}] Message", topic, kafkaReqData);
+            log.info("Topic [{}] ,message received From CustomerApp for Posting [{}]", topic, kafkaReqData);
             ObjectMapper mapper = new ObjectMapper()
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            Message message = mapper.readValue(kafkaReqData, Message.class);
-            postingProcessService.process(message);
+                Message message = mapper.readValue(kafkaReqData,Message.class);
+                postingProcessService.process(message);
         } catch (JsonProcessingException jpe) {
-            log.error("Tenant [{}],Topic [{}] ,JsonProcessing Exception While Receiving Request [{}] ,Exception [{}]", topic, kafkaReqData, jpe);
+           log.error("Topic [{}] ,JsonProcessing Exception While Receiving Request [{}] ,Exception [{}]", topic, kafkaReqData, jpe);
         } catch (Exception e) {
-            log.error("Tenant [{}] ,Topic [{}] ,Exception While Receiving Request [{}] ,Exception [{}]", topic, kafkaReqData, e);
+            log.error("Topic [{}] ,Exception While Receiving Request [{}] ,Exception [{}]", topic, kafkaReqData, e);
         }
     }
 }

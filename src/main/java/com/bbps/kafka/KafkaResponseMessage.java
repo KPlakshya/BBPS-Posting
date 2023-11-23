@@ -19,30 +19,17 @@ public class KafkaResponseMessage {
     public static Message constructMessage(Map<String, Object> obj){
         Message message = new Message();
 
-        Message.BbpsReqInfo appInfo = new Message.BbpsReqInfo();
+        Message.BbpsReqinfo appInfo = new Message.BbpsReqinfo();
 
         Map<String,Object> headerMap = new HashMap<>();
-       // headerMap.put("tenant", TenantContext.getTenantId());
-        //headerMap.put("userid",TenantContext.getUserId());
         appInfo.setHeaders(headerMap);
 
         Message.MessageBody messageBody = new Message.MessageBody();
         messageBody.setBody(obj.toString());
         appInfo.setMessageBody(messageBody);
 
-        message.setBbpsReqInfo(appInfo);
+        message.setBbpsReqinfo(appInfo);
         return message;
     }
-
-    public static String decodeMessage(String reqMsg) throws JsonProcessingException {
-        Message message = new ObjectMapper().readValue(reqMsg, Message.class);
-      //  TenantContext.setTenantId(message.getAppInfo().getHeaders().get(FundPostConstants.TENANT).toString());
-       // TenantContext.setUserId(message.getAppInfo().getHeaders().get(FundPostConstants.TENANT_USER_ID).toString());
-        return new ObjectMapper().writeValueAsString(message.getBbpsReqInfo().getMessageBody().getBody());
-    }
-
-
-
-
 
 }

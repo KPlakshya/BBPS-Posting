@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billerfetch.data.BillerFetchResponse;
+import com.bbps.billerfetch.data.BillerFetchResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.entity.CustomerRequestResponse;
 import com.bbps.entity.repo.CustomerRequestResponseRepo;

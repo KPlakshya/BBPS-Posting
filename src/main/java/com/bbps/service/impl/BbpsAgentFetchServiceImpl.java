@@ -1,14 +1,14 @@
 package com.bbps.service.impl;
 
-import org.bbps.schema.AgentFetchRequestType;
+import org.bbps.schema.AgentFetchRequest;
 import org.bbps.schema.SearchByTime;
 import org.bbps.schema.SearchTypeForAgent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bbps.agentfetch.data.AgentFetchRequest;
-import com.bbps.agentfetch.data.AgentFetchResponse;
+import com.bbps.agentfetch.data.AgentFetchRequestVO;
+import com.bbps.agentfetch.data.AgentFetchResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.data.BbpsPostingResponse;
 import com.bbps.entity.service.CustomerRequestResponseService;
@@ -28,10 +28,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BbpsAgentFetchServiceImpl implements BBPSService {
 
-	@Value("$bbps.orgInst")
+	@Value("${bbps.orgInst}")
 	private String orgId;
 
-	@Value("$bbps.prefix")
+	@Value("${bbps.prefix}")
 	private String prefix;
 
 	@Autowired
@@ -45,10 +45,10 @@ public class BbpsAgentFetchServiceImpl implements BBPSService {
 		log.info("inside BbpsAgentFetchServiceImpl process [{}]", message.toString());
 		String agentFetchStr = null;
 		BbpsPostingResponse bbpspostingresp = null;
-		AgentFetchRequestType agentfetch = null;
+		AgentFetchRequest agentfetch = null;
 		try {
 
-			agentfetch = getAgentFetchRequestXML(message.getBbpsReqInfo().getMessageBody().getBody());
+			agentfetch = getAgentFetchRequestXML(message.getBbpsReqinfo().getMessageBody().getBody());
 			agentFetchStr = MarshUnMarshUtil.marshal(agentfetch).toString();
 			bbpspostingresp = bbpsRestConService.send(agentFetchStr, Constants.AGENT_FETCH_REQUEST,
 					agentfetch.getHead().getRefId());
@@ -61,11 +61,11 @@ public class BbpsAgentFetchServiceImpl implements BBPSService {
 			bbpspostingresp.setAck(Constants.ERROR_MSG_99);
 
 		} finally {
-			String id = message.getBbpsReqInfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
+			String id = message.getBbpsReqinfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
 			String refId = agentfetch != null ? agentfetch.getHead().getRefId() : null;
 			if (bbpspostingresp.getAckerror() != null) {
 
-				AgentFetchResponse response = new AgentFetchResponse();
+				AgentFetchResponseVO response = new AgentFetchResponseVO();
 				response.setResponseCode(bbpspostingresp.getErrorCode());
 				response.setResponseMessage(bbpspostingresp.getAckerror());
 				custReqRespService.fetchAndUpdateFailure(id, bbpspostingresp.getHttpcode(), refId, response);
@@ -78,13 +78,13 @@ public class BbpsAgentFetchServiceImpl implements BBPSService {
 
 	}
 
-	private AgentFetchRequestType getAgentFetchRequestXML(String body)
+	private AgentFetchRequest getAgentFetchRequestXML(String body)
 			throws JsonMappingException, JsonProcessingException {
-		AgentFetchRequest request = getRequest(body);
-		AgentFetchRequestType xmlrequest = new AgentFetchRequestType();
+		AgentFetchRequestVO request = getRequest(body);
+		AgentFetchRequest xmlrequest = new AgentFetchRequest();
 		xmlrequest.setHead(Utils.createHead(orgId, prefix));
 		SearchTypeForAgent searchType = new SearchTypeForAgent();
-		searchType.getAgentId().add(request.getAgentId());
+		searchType.getAgentIds().add(request.getAgentId());
 		SearchByTime searchByTime = new SearchByTime();
 		searchByTime.setTime(Utils.generateTs());
 		xmlrequest.setSearch(searchType);
@@ -93,9 +93,9 @@ public class BbpsAgentFetchServiceImpl implements BBPSService {
 
 	}
 
-	public static AgentFetchRequest getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
+	public static AgentFetchRequestVO getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		AgentFetchRequest reqJson = mapper.readValue(reqStr, AgentFetchRequest.class);
+		AgentFetchRequestVO reqJson = mapper.readValue(reqStr, AgentFetchRequestVO.class);
 
 		return reqJson;
 	}

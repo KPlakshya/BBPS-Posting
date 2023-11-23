@@ -55,7 +55,6 @@ public class CertificateConfig {
 		try {
 			KeyStore keystore = KeyStore.getInstance(pvtType);
 			in = new FileInputStream(new File(pvtFile));
-
 			keystore.load(in, pvtPass.toCharArray());
 			PrivateKey key = (PrivateKey) keystore.getKey(pvtAlias, pvtPass.toCharArray());
 			log.info("private key loaded {}", key);

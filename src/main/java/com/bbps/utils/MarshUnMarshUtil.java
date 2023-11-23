@@ -47,6 +47,7 @@ public class MarshUnMarshUtil {
 
 			jaxbMarshaller.marshal(t, writer);
 		} catch (JAXBException e) {
+			e.printStackTrace();
 			log.error("error in marshal :{}", e);
 		}
 

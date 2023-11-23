@@ -1,16 +1,13 @@
 package com.bbps.service.impl;
 
-import org.bbps.schema.BillerFetchRequestType;
-import org.bbps.schema.MyBiller;
-import org.bbps.schema.SearchByTime;
-import org.bbps.schema.SearchMyBiller;
-import org.bbps.schema.SearchType;
+import com.bbps.billfetch.data.BillFetchResponseVO;
+import org.bbps.schema.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bbps.billerfetch.data.BillerFetchRequest;
-import com.bbps.billerfetch.data.BillerFetchResponse;
+import com.bbps.billerfetch.data.BillerFetchRequestVO;
+import com.bbps.billerfetch.data.BillerFetchResponseVO;
 import com.bbps.constants.Constants;
 import com.bbps.data.BbpsPostingResponse;
 import com.bbps.entity.service.CustomerRequestResponseService;
@@ -30,10 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BbpsBillerFetchServiceImpl implements BBPSService {
 
-	@Value("$bbps.orgInst")
+	@Value("${bbps.orgInst}")
 	private String orgId;
 
-	@Value("$bbps.prefix")
+	@Value("${bbps.prefix}")
 	private String prefix;
 
 	@Autowired
@@ -47,10 +44,11 @@ public class BbpsBillerFetchServiceImpl implements BBPSService {
 		log.info("inside BbpsBillerFetchServiceImpl process [{}]", message.toString());
 		String billerFetchStr = null;
 		BbpsPostingResponse bbpspostingresp = null;
-		BillerFetchRequestType billerFetch = null;
+		BillerFetchRequest billerFetch = null;
 		try {
 
-			billerFetch = getBillerFetchRequestXML(message.getBbpsReqInfo().getMessageBody().getBody());
+			billerFetch = getBillerFetchRequestXML(message.getBbpsReqinfo().getMessageBody().getBody());
+			log.info("Biller Fect ");
 			billerFetchStr = MarshUnMarshUtil.marshal(billerFetch).toString();
 			bbpspostingresp = bbpsRestConService.send(billerFetchStr, Constants.BILLER_FETCH_REQUEST,
 					billerFetch.getHead().getRefId());
@@ -63,11 +61,11 @@ public class BbpsBillerFetchServiceImpl implements BBPSService {
 			bbpspostingresp.setAck(Constants.ERROR_MSG_99);
 
 		} finally {
-			String id = message.getBbpsReqInfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
+			String id = message.getBbpsReqinfo().getHeaders().get(Constants.CUSTOMER_REQ_ID).toString();
 			String refId = billerFetch != null ? billerFetch.getHead().getRefId() : null;
+			log.info("Ack Response [{}]",bbpspostingresp);
 			if (bbpspostingresp.getAckerror() != null) {
-
-				BillerFetchResponse response = new BillerFetchResponse();
+				BillFetchResponseVO response = new BillFetchResponseVO();
 				response.setResponseCode(bbpspostingresp.getErrorCode());
 				response.setResponseMessage(bbpspostingresp.getAckerror());
 				custReqRespService.fetchAndUpdateFailure(id, bbpspostingresp.getHttpcode(), refId, response);
@@ -80,17 +78,17 @@ public class BbpsBillerFetchServiceImpl implements BBPSService {
 
 	}
 
-	private BillerFetchRequestType getBillerFetchRequestXML(String body)
+	private BillerFetchRequest getBillerFetchRequestXML(String body)
 			throws JsonMappingException, JsonProcessingException {
-		BillerFetchRequest request = getRequest(body);
-		BillerFetchRequestType xmlrequest = new BillerFetchRequestType();
+		BillerFetchRequestVO request = getRequest(body);
+		BillerFetchRequest xmlrequest = new BillerFetchRequest();
 		xmlrequest.setHead(Utils.createHead(orgId, prefix));
 		SearchMyBiller searchMyBiller = new SearchMyBiller();
-		searchMyBiller.setMybiller(MyBiller.valueOf(request.getSearchMyBiller()));
+		searchMyBiller.setMybiller(MyBiller.fromValue(request.getSearchMyBiller()));
 		xmlrequest.setSearchMyBiller(searchMyBiller);
 		SearchType searchType = new SearchType();
-		searchType.getBillerId().add(request.getBillerId());
-		searchType.getBillerCategoryName().add(request.getBillerCategoryName());
+		searchType.getBillerIds().add(request.getBillerId());
+		searchType.getBillerCategoryNames().add(request.getBillerCategoryName());
 		SearchByTime searchByTime = new SearchByTime();
 		searchByTime.setTime(Utils.generateTs());
 		xmlrequest.setSearch(searchType);
@@ -99,9 +97,9 @@ public class BbpsBillerFetchServiceImpl implements BBPSService {
 
 	}
 
-	public static BillerFetchRequest getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
+	public static BillerFetchRequestVO getRequest(String reqStr) throws JsonMappingException, JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		BillerFetchRequest reqJson = mapper.readValue(reqStr, BillerFetchRequest.class);
+		BillerFetchRequestVO reqJson = mapper.readValue(reqStr, BillerFetchRequestVO.class);
 
 		return reqJson;
 	}
