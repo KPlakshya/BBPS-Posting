@@ -22,7 +22,7 @@ public class TestRequestController {
 
     @PostMapping(value = "/test",produces = MediaType.APPLICATION_JSON_VALUE,consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Message> getRequest(Message message) throws JsonProcessingException {
-        log.info("Request Recived from controller [{}]",message);
+        log.info("Request Received from controller [{}]",message);
         npciRequestPostingService.post(message);
         return ResponseEntity.status(HttpStatus.OK).body(message);
 
